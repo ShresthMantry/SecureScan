@@ -23,6 +23,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" size={size} color={color} />
           ),
@@ -32,6 +33,7 @@ export default function TabLayout() {
         name="link-checker"
         options={{
           title: 'Link Checker',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="link" size={size} color={color} />
           ),
@@ -41,6 +43,7 @@ export default function TabLayout() {
         name="qr-scanner"
         options={{
           title: 'QR Scanner',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="qr-code" size={size} color={color} />
           ),
@@ -50,6 +53,7 @@ export default function TabLayout() {
         name="community"
         options={{
           title: 'Community',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people" size={size} color={color} />
           ),
@@ -59,6 +63,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />
           ),

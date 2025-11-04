@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { PostCard } from '../../components/PostCard';
@@ -56,6 +56,16 @@ export default function CommunityScreen() {
       loadPosts();
     }
   }, [user]);
+
+  // Refresh posts when screen comes into focus (e.g., after creating a post)
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        setPage(1);
+        loadPosts(1, true);
+      }
+    }, [user])
+  );
 
   const handleRefresh = useCallback(() => {
     setPage(1);
