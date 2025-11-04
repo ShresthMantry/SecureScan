@@ -9,20 +9,18 @@ export default function RootLayout() {
       <StatusBar style="light" />
       <Stack
         screenOptions={{
-          headerStyle: {
-            backgroundColor: colors.cardBackground,
-          },
-          headerTintColor: colors.text,
-          headerShadowVisible: false,
+          headerShown: false,
           contentStyle: {
             backgroundColor: colors.background,
           },
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ title: 'Login' }} />
-        <Stack.Screen name="register" options={{ title: 'Register' }} />
-        <Stack.Screen name="create-post" options={{ title: 'Create Post' }} />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="register" options={{ headerShown: false }} />
+        <Stack.Screen name="create-post" options={{ headerShown: false }} />
+        <Stack.Screen name="my-posts" options={{ headerShown: false }} />
+        <Stack.Screen name="post/[id]" options={{ headerShown: false }} />
       </Stack>
     </AuthProvider>
   );

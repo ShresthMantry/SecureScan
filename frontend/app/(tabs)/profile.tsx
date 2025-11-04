@@ -100,7 +100,7 @@ export default function ProfileScreen() {
 
           <Button
             title="View My Posts"
-            onPress={() => router.push(`/user/${user.id}`)}
+            onPress={() => router.push('/my-posts')}
             variant="secondary"
             style={styles.actionButton}
           />

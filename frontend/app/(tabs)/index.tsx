@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -79,17 +79,18 @@ export default function HomeScreen() {
   }));
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={colors.gradientBackground}
-        style={StyleSheet.absoluteFillObject}
-      />
-      
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <LinearGradient
+          colors={colors.gradientBackground}
+          style={StyleSheet.absoluteFillObject}
+        />
+        
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
         <Animated.View style={[styles.content, fadeStyle]}>
           {/* Header with glow effect */}
           <Animated.View style={[styles.header, pulseStyle]}>
@@ -203,14 +204,18 @@ export default function HomeScreen() {
         </View>
       </Animated.View>
     </ScrollView>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  container: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,

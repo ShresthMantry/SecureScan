@@ -19,8 +19,7 @@ router.get('/', async (req, res) => {
       .skip(skip)
       .limit(limit)
       .populate('userId', 'username email')
-      .populate('comments.userId', 'username')
-      .populate('likes', 'username');
+      .populate('comments.userId', 'username');
 
     const total = await Post.countDocuments();
 
@@ -46,8 +45,7 @@ router.get('/:id', async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
       .populate('userId', 'username email')
-      .populate('comments.userId', 'username')
-      .populate('likes', 'username');
+      .populate('comments.userId', 'username');
 
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
