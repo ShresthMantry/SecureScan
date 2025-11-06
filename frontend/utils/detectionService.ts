@@ -6,6 +6,12 @@ export interface DetectionResult {
   confidence: number;
   is_fraudulent: boolean;
   extracted_from_qr?: boolean;
+  risk_score?: number;
+  threat_type?: string;
+  ml_prediction?: string;
+  ml_confidence?: number;
+  heuristic_check?: string;
+  warning_flags?: string[];
 }
 
 export const detectionService = {

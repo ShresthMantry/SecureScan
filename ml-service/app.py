@@ -8,6 +8,8 @@ import torch
 import os
 from werkzeug.utils import secure_filename
 import tempfile
+import re
+from urllib.parse import urlparse
 
 app = Flask(__name__)
 CORS(app)
@@ -34,34 +36,175 @@ except Exception as e:
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def check_url_heuristics(url):
+    """
+    Check URL using heuristic rules for common fraud patterns
+    Returns: (is_suspicious, risk_score, reasons)
+    """
+    risk_score = 0
+    reasons = []
+    
+    try:
+        parsed = urlparse(url.lower())
+        domain = parsed.netloc
+        path = parsed.path
+        
+        # Suspicious keywords in domain or path
+        suspicious_keywords = [
+            'login', 'signin', 'account', 'verify', 'secure', 'update', 'confirm',
+            'banking', 'paypal', 'amazon', 'apple', 'microsoft', 'google',
+            'password', 'suspended', 'locked', 'unusual', 'activity',
+            'click', 'urgent', 'action', 'required', 'wallet', 'crypto',
+            'prize', 'winner', 'claim', 'free', 'gift', 'congratulations'
+        ]
+        
+        url_lower = url.lower()
+        for keyword in suspicious_keywords:
+            if keyword in url_lower:
+                risk_score += 15
+                reasons.append(f"Contains suspicious keyword: '{keyword}'")
+        
+        # IP address instead of domain name
+        ip_pattern = r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+        if re.search(ip_pattern, domain):
+            risk_score += 30
+            reasons.append("Uses IP address instead of domain name")
+        
+        # Excessive subdomains (e.g., paypal.secure.login.verify.com)
+        subdomain_count = domain.count('.')
+        if subdomain_count > 3:
+            risk_score += 25
+            reasons.append(f"Excessive subdomains ({subdomain_count})")
+        
+        # Very long domain names (often used in phishing)
+        if len(domain) > 40:
+            risk_score += 20
+            reasons.append(f"Unusually long domain ({len(domain)} characters)")
+        
+        # Suspicious TLDs
+        suspicious_tlds = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.club', '.work', '.bid']
+        for tld in suspicious_tlds:
+            if domain.endswith(tld):
+                risk_score += 25
+                reasons.append(f"Suspicious TLD: {tld}")
+        
+        # URL shorteners (can hide malicious links)
+        url_shorteners = ['bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'ow.ly', 'is.gd', 'buff.ly']
+        if any(shortener in domain for shortener in url_shorteners):
+            risk_score += 20
+            reasons.append("URL shortener detected")
+        
+        # Excessive hyphens in domain
+        if domain.count('-') > 3:
+            risk_score += 15
+            reasons.append(f"Excessive hyphens in domain ({domain.count('-')})")
+        
+        # Non-HTTPS (less secure)
+        if parsed.scheme != 'https':
+            risk_score += 10
+            reasons.append("Not using HTTPS")
+        
+        # @ symbol in URL (can be used to trick users)
+        if '@' in url:
+            risk_score += 30
+            reasons.append("Contains @ symbol (potential redirect trick)")
+        
+        # Homograph/lookalike characters
+        suspicious_chars = ['а', 'е', 'о', 'р', 'с', 'у', 'х']  # Cyrillic lookalikes
+        for char in suspicious_chars:
+            if char in domain:
+                risk_score += 35
+                reasons.append("Contains lookalike characters (possible homograph attack)")
+                break
+        
+        # Port numbers (unusual for legitimate sites)
+        if ':' in domain and not domain.endswith(':443') and not domain.endswith(':80'):
+            risk_score += 20
+            reasons.append("Uses non-standard port")
+        
+        # Determine if suspicious based on risk score
+        is_suspicious = risk_score >= 30
+        
+        return is_suspicious, risk_score, reasons
+        
+    except Exception as e:
+        return False, 0, [f"Error analyzing URL: {str(e)}"]
+
 def predict_url(url):
     """
-    Predict if a URL is malicious or safe using the Hugging Face model
+    Predict if a URL is malicious or safe using the Hugging Face model + heuristics
     """
     if not model or not tokenizer:
         return {"error": "Model not loaded"}, 500
     
     try:
-        # Tokenize the URL
-        inputs = tokenizer(url, return_tensors="pt", truncation=True, max_length=512, padding=True)
+        # First, check heuristics
+        is_suspicious_heuristic, risk_score, heuristic_reasons = check_url_heuristics(url)
         
-        # Get prediction
+        # Tokenize the URL for ML model
+        inputs = tokenizer(url, return_tensors="pt", truncation=True, padding=True, max_length=128)
+        
+        # Get ML model prediction
         with torch.no_grad():
             outputs = model(**inputs)
             logits = outputs.logits
             probabilities = torch.softmax(logits, dim=1)
             prediction = torch.argmax(probabilities, dim=1).item()
-            confidence = probabilities[0][prediction].item()
+            ml_confidence = probabilities[0][prediction].item()
         
-        # Map prediction to label (0 = safe, 1 = malicious)
-        label = "malicious" if prediction == 1 else "safe"
+        # Mapping prediction to labels
+        # 0: Benign, 1: Defacement, 2: Phishing, 3: Malware
+        label_map = {0: "Benign", 1: "Defacement", 2: "Phishing", 3: "Malware"}
+        ml_prediction_label = label_map.get(prediction, "Unknown")
         
-        return {
+        # Determine if malicious (anything other than Benign is considered malicious)
+        ml_is_malicious = prediction != 0
+        
+        # Combine ML prediction with heuristics
+        # If either heuristics OR ML model says it's malicious, mark as malicious
+        is_fraudulent = ml_is_malicious or is_suspicious_heuristic
+        
+        # Calculate combined confidence
+        if is_fraudulent:
+            # If both agree it's malicious, high confidence
+            if ml_is_malicious and is_suspicious_heuristic:
+                combined_confidence = max(ml_confidence, risk_score / 100)
+            # If only heuristics say malicious
+            elif is_suspicious_heuristic:
+                combined_confidence = risk_score / 100
+            # If only ML says malicious
+            else:
+                combined_confidence = ml_confidence
+        else:
+            # Both say safe
+            combined_confidence = ml_confidence
+        
+        # Overall label
+        if is_fraudulent:
+            if ml_is_malicious:
+                label = "malicious"
+                threat_type = ml_prediction_label
+            else:
+                label = "malicious"
+                threat_type = "Suspicious"
+        else:
+            label = "safe"
+            threat_type = "Benign"
+        
+        result = {
             "url": url,
             "prediction": label,
-            "confidence": float(confidence),
-            "is_fraudulent": prediction == 1
-        }, 200
+            "confidence": float(combined_confidence),
+            "is_fraudulent": is_fraudulent,
+            "threat_type": threat_type,
+            "risk_score": risk_score,
+            "ml_prediction": ml_prediction_label,
+            "ml_confidence": float(ml_confidence),
+            "heuristic_check": "suspicious" if is_suspicious_heuristic else "clean",
+            "warning_flags": heuristic_reasons if heuristic_reasons else []
+        }
+        
+        return result, 200
     except Exception as e:
         return {"error": f"Prediction failed: {str(e)}"}, 500
 

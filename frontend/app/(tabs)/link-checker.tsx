@@ -132,20 +132,65 @@ export default function LinkCheckerScreen() {
                   </Text>
                 </View>
 
+                {result.threat_type && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Threat Type:</Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        styles.predictionText,
+                        result.threat_type === 'Benign' ? styles.successText : styles.dangerText,
+                      ]}
+                    >
+                      {result.threat_type}
+                    </Text>
+                  </View>
+                )}
+
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Confidence:</Text>
                   <Text style={styles.detailValue}>
                     {(result.confidence * 100).toFixed(2)}%
                   </Text>
                 </View>
+
+                {result.risk_score !== undefined && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Risk Score:</Text>
+                    <Text style={[
+                      styles.detailValue,
+                      result.risk_score > 50 ? styles.dangerText : styles.successText
+                    ]}>
+                      {result.risk_score}/100
+                    </Text>
+                  </View>
+                )}
               </View>
+
+              {result.warning_flags && result.warning_flags.length > 0 && (
+                <View style={styles.warningFlagsContainer}>
+                  <Text style={styles.warningFlagsTitle}>⚠️ Warning Flags:</Text>
+                  {result.warning_flags.map((flag: string, index: number) => (
+                    <View key={index} style={styles.warningFlagItem}>
+                      <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
+                      <Text style={styles.warningFlagText}>{flag}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
 
               {result.is_fraudulent && (
                 <View style={styles.warningBox}>
                   <Ionicons name="alert-circle" size={20} color={colors.error} />
                   <Text style={styles.warningText}>
-                    This link has been detected as potentially malicious. Do not visit or share
-                    this URL.
+                    {result.threat_type === 'Phishing' && 
+                      '⚠️ Phishing Attack Detected! This link is attempting to steal your personal information. Do not enter any credentials or personal data.'}
+                    {result.threat_type === 'Malware' && 
+                      '☢️ Malware Detected! This link may download harmful software to your device. Do not visit this URL.'}
+                    {result.threat_type === 'Defacement' && 
+                      '🚫 Defaced Website! This website has been compromised. Avoid visiting this URL.'}
+                    {(!result.threat_type || result.threat_type === 'Suspicious') && 
+                      '⚠️ Suspicious Link! This link has been detected as potentially malicious. Do not visit or share this URL.'}
                   </Text>
                 </View>
               )}
@@ -214,11 +259,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   successCard: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.surfaceCard,
     borderColor: colors.success,
   },
   dangerCard: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.surfaceCard,
     borderColor: colors.error,
   },
   resultHeader: {
@@ -255,6 +300,34 @@ const styles = StyleSheet.create({
   },
   dangerText: {
     color: colors.error,
+  },
+  warningFlagsContainer: {
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.error + '10',
+    borderRadius: borderRadius.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.error,
+  },
+  warningFlagsTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.error,
+    marginBottom: spacing.sm,
+  },
+  warningFlagItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.xs,
+    paddingLeft: spacing.sm,
+  },
+  warningFlagText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: colors.text,
+    marginLeft: spacing.sm,
+    lineHeight: 18,
   },
   warningBox: {
     flexDirection: 'row',
