@@ -122,12 +122,50 @@ export default function QRScannerScreen() {
               </View>
 
               <View style={styles.resultDetails}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Extracted URL:</Text>
-                  <Text style={styles.detailValue} numberOfLines={3}>
-                    {result.url}
-                  </Text>
-                </View>
+                {result.qr_type && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>QR Type:</Text>
+                    <Text style={styles.detailValue}>
+                      {result.qr_type === 'payment' ? '💳 Payment QR' : result.qr_type === 'url' ? '🔗 URL QR' : 'Other'}
+                    </Text>
+                  </View>
+                )}
+
+                {result.qr_type === 'payment' && result.payment_info ? (
+                  <>
+                    {result.payment_info.payee_name && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Payee Name:</Text>
+                        <Text style={styles.detailValue}>
+                          {result.payment_info.payee_name}
+                        </Text>
+                      </View>
+                    )}
+                    {result.payment_info.payee_address && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>UPI ID:</Text>
+                        <Text style={styles.detailValue} numberOfLines={2}>
+                          {result.payment_info.payee_address}
+                        </Text>
+                      </View>
+                    )}
+                    {result.payment_info.amount && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Amount:</Text>
+                        <Text style={[styles.detailValue, styles.predictionText]}>
+                          ₹{result.payment_info.amount}
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Extracted URL:</Text>
+                    <Text style={styles.detailValue} numberOfLines={3}>
+                      {result.url || result.qr_data}
+                    </Text>
+                  </View>
+                )}
 
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Prediction:</Text>
@@ -142,29 +180,82 @@ export default function QRScannerScreen() {
                   </Text>
                 </View>
 
+                {result.threat_type && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Threat Type:</Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        styles.predictionText,
+                        result.threat_type.includes('Benign') || result.threat_type.includes('Legitimate') ? styles.successText : styles.dangerText,
+                      ]}
+                    >
+                      {result.threat_type}
+                    </Text>
+                  </View>
+                )}
+
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Confidence:</Text>
                   <Text style={styles.detailValue}>
                     {(result.confidence * 100).toFixed(2)}%
                   </Text>
                 </View>
+
+                {result.risk_score !== undefined && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Risk Score:</Text>
+                    <Text style={[
+                      styles.detailValue,
+                      result.risk_score > 50 ? styles.dangerText : styles.successText
+                    ]}>
+                      {result.risk_score}/100
+                    </Text>
+                  </View>
+                )}
               </View>
+
+              {result.warning_flags && result.warning_flags.length > 0 && (
+                <View style={styles.warningFlagsContainer}>
+                  <Text style={styles.warningFlagsTitle}>⚠️ Warning Flags:</Text>
+                  {result.warning_flags.map((flag: string, index: number) => (
+                    <View key={index} style={styles.warningFlagItem}>
+                      <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
+                      <Text style={styles.warningFlagText}>{flag}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
 
               {result.is_fraudulent && (
                 <View style={styles.warningBox}>
                   <Ionicons name="alert-circle" size={20} color={colors.error} />
                   <Text style={styles.warningText}>
-                    This QR code contains a potentially malicious URL. Do not visit or scan this
-                    code again.
+                    {result.qr_type === 'payment' 
+                      ? '⚠️ Fraudulent Payment QR! This appears to be a scam. Do not make any payment through this QR code. Common scams include fake police/officer accounts, lottery scams, and urgent payment requests.'
+                      : result.threat_type === 'Phishing' 
+                      ? '⚠️ Phishing Attack Detected! This QR code leads to a site attempting to steal your personal information. Do not visit or enter any credentials.'
+                      : result.threat_type === 'Malware'
+                      ? '☢️ Malware Detected! This QR code may download harmful software to your device. Do not visit this URL.'
+                      : '⚠️ This QR code has been detected as potentially malicious. Do not scan or use this code.'}
                   </Text>
                 </View>
               )}
 
-              {!result.is_fraudulent && (
+              {!result.is_fraudulent && result.prediction !== 'unknown' && (
                 <View style={styles.safeBox}>
                   <Ionicons name="checkmark-circle" size={20} color={colors.success} />
                   <Text style={styles.safeText}>
                     This QR code appears to be safe based on our analysis.
+                  </Text>
+                </View>
+              )}
+
+              {result.prediction === 'unknown' && (
+                <View style={styles.infoBox}>
+                  <Ionicons name="information-circle" size={20} color={colors.accent} />
+                  <Text style={styles.infoText}>
+                    This QR code contains data that is neither a URL nor a payment request. Unable to analyze for fraud.
                   </Text>
                 </View>
               )}
@@ -211,7 +302,7 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xxl,
   },
   uploadButton: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.surfaceCard,
     borderWidth: 2,
     borderColor: colors.primary,
     borderStyle: 'dashed',
@@ -256,11 +347,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   successCard: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.surfaceCard,
     borderColor: colors.success,
   },
   dangerCard: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.surfaceCard,
     borderColor: colors.error,
   },
   resultHeader: {
@@ -299,6 +390,34 @@ const styles = StyleSheet.create({
   dangerText: {
     color: colors.error,
   },
+  warningFlagsContainer: {
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.error + '10',
+    borderRadius: borderRadius.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.error,
+  },
+  warningFlagsTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.error,
+    marginBottom: spacing.sm,
+  },
+  warningFlagItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.xs,
+    paddingLeft: spacing.sm,
+  },
+  warningFlagText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: colors.text,
+    marginLeft: spacing.sm,
+    lineHeight: 18,
+  },
   warningBox: {
     flexDirection: 'row',
     backgroundColor: colors.error + '20',
@@ -326,6 +445,21 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontSize.sm,
     color: colors.success,
+    marginLeft: spacing.sm,
+    lineHeight: 20,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    backgroundColor: colors.accent + '20',
+    borderRadius: borderRadius.sm,
+    padding: spacing.md,
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: colors.accent,
     marginLeft: spacing.sm,
     lineHeight: 20,
   },

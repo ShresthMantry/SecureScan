@@ -1,8 +1,10 @@
 import api from './api';
 
 export interface DetectionResult {
-  url: string;
-  prediction: 'safe' | 'malicious';
+  url?: string;
+  qr_data?: string;
+  qr_type?: 'url' | 'payment' | 'other';
+  prediction: 'safe' | 'malicious' | 'unknown';
   confidence: number;
   is_fraudulent: boolean;
   extracted_from_qr?: boolean;
@@ -12,6 +14,11 @@ export interface DetectionResult {
   ml_confidence?: number;
   heuristic_check?: string;
   warning_flags?: string[];
+  payment_info?: {
+    payee_address?: string;
+    payee_name?: string;
+    amount?: string;
+  };
 }
 
 export const detectionService = {

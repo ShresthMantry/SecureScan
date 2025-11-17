@@ -49,13 +49,18 @@ def check_url_heuristics(url):
         domain = parsed.netloc
         path = parsed.path
         
-        # Suspicious keywords in domain or path
+        # Suspicious keywords in domain or path (English and common international variants)
         suspicious_keywords = [
             'login', 'signin', 'account', 'verify', 'secure', 'update', 'confirm',
             'banking', 'paypal', 'amazon', 'apple', 'microsoft', 'google',
             'password', 'suspended', 'locked', 'unusual', 'activity',
             'click', 'urgent', 'action', 'required', 'wallet', 'crypto',
-            'prize', 'winner', 'claim', 'free', 'gift', 'congratulations'
+            'prize', 'winner', 'claim', 'free', 'gift', 'congratulations',
+            # Portuguese/Spanish variants common in phishing
+            'atualizacao', 'atualizar', 'dados', 'conta', 'verificar', 'seguro',
+            'urgente', 'bloqueado', 'suspenso', 'confirmar', 'senha',
+            # Other international variants
+            'validar', 'restablecer', 'recuperar', 'notification'
         ]
         
         url_lower = url.lower()
@@ -81,8 +86,12 @@ def check_url_heuristics(url):
             risk_score += 20
             reasons.append(f"Unusually long domain ({len(domain)} characters)")
         
-        # Suspicious TLDs
-        suspicious_tlds = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.club', '.work', '.bid']
+        # Suspicious TLDs (free/cheap domains commonly used in phishing)
+        suspicious_tlds = [
+            '.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.club', 
+            '.work', '.bid', '.online', '.site', '.website', '.space', 
+            '.info', '.pw', '.cc'
+        ]
         for tld in suspicious_tlds:
             if domain.endswith(tld):
                 risk_score += 25
@@ -208,34 +217,194 @@ def predict_url(url):
     except Exception as e:
         return {"error": f"Prediction failed: {str(e)}"}, 500
 
-def extract_url_from_qr(image_path):
+def is_payment_qr(qr_data):
     """
-    Extract URL from QR code using OpenCV and pyzbar
+    Check if QR code contains payment information
+    """
+    qr_lower = qr_data.lower()
+    
+    # Common UPI/payment patterns
+    payment_patterns = [
+        'upi://', 'paytm', 'phonepe', 'googlepay', 'gpay',
+        'bhim', 'amazonpay', 'mobikwik', 'freecharge',
+        'pa=', 'pn=', 'mc=', 'tid=', 'tr=', 'tn=', 'am=', 'cu='
+    ]
+    
+    for pattern in payment_patterns:
+        if pattern in qr_lower:
+            return True
+    
+    return False
+
+def check_payment_qr_heuristics(qr_data):
+    """
+    Analyze payment QR code for fraudulent patterns
+    Returns: (is_fraudulent, risk_score, reasons, payment_info)
+    """
+    risk_score = 0
+    reasons = []
+    payment_info = {}
+    
+    try:
+        qr_lower = qr_data.lower()
+        
+        # Extract UPI parameters if present
+        if 'pa=' in qr_data:
+            pa_match = re.search(r'pa=([^&\s]+)', qr_data, re.IGNORECASE)
+            if pa_match:
+                payment_info['payee_address'] = pa_match.group(1)
+        
+        if 'pn=' in qr_data:
+            pn_match = re.search(r'pn=([^&\s]+)', qr_data, re.IGNORECASE)
+            if pn_match:
+                payment_info['payee_name'] = pn_match.group(1).replace('+', ' ')
+        
+        if 'am=' in qr_data:
+            am_match = re.search(r'am=([^&\s]+)', qr_data, re.IGNORECASE)
+            if am_match:
+                payment_info['amount'] = am_match.group(1)
+        
+        # Check for suspicious patterns in payment QR
+        
+        # 1. Suspicious keywords in payee name
+        suspicious_keywords = [
+            'police', 'officer', 'cyber', 'crime', 'investigation',
+            'arrest', 'warrant', 'court', 'legal', 'fine',
+            'penalty', 'seized', 'frozen', 'blocked',
+            'prize', 'lottery', 'winner', 'claim', 'reward',
+            'refund', 'cashback', 'bonus', 'voucher',
+            'verify', 'update', 'confirm', 'security'
+        ]
+        
+        payee_name = payment_info.get('payee_name', '').lower()
+        for keyword in suspicious_keywords:
+            if keyword in payee_name or keyword in qr_lower:
+                risk_score += 25
+                reasons.append(f"Suspicious keyword in payment: '{keyword}'")
+        
+        # 2. Generic/suspicious UPI IDs
+        payee_address = payment_info.get('payee_address', '').lower()
+        if payee_address:
+            # Personal account instead of merchant
+            if '@' in payee_address:
+                provider = payee_address.split('@')[-1]
+                # Check if it's a personal account provider (not merchant)
+                personal_providers = ['okaxis', 'okicici', 'okhdfcbank', 'oksbi', 'paytm']
+                if any(p in provider for p in personal_providers):
+                    risk_score += 15
+                    reasons.append("Payment to personal account instead of merchant")
+            
+            # Random-looking UPI ID
+            if re.search(r'\d{10}@', payee_address):
+                risk_score += 10
+                reasons.append("Payment to phone number-based UPI ID")
+        
+        # 3. Unusually high amount
+        amount = payment_info.get('amount', '')
+        if amount:
+            try:
+                amount_float = float(amount)
+                if amount_float > 10000:
+                    risk_score += 20
+                    reasons.append(f"High payment amount: ₹{amount_float}")
+                elif amount_float > 50000:
+                    risk_score += 35
+                    reasons.append(f"Very high payment amount: ₹{amount_float}")
+            except ValueError:
+                pass
+        
+        # 4. Urgent/threatening transaction notes
+        if 'tn=' in qr_data:
+            tn_match = re.search(r'tn=([^&\s]+)', qr_data, re.IGNORECASE)
+            if tn_match:
+                transaction_note = tn_match.group(1).lower()
+                urgent_words = ['urgent', 'immediately', 'asap', 'now', 'quickly', 'hurry']
+                for word in urgent_words:
+                    if word in transaction_note:
+                        risk_score += 15
+                        reasons.append("Urgent/pressure language in transaction note")
+                        break
+        
+        # 5. Missing merchant code (legitimate merchants usually have it)
+        if 'mc=' not in qr_data and 'am=' in qr_data:
+            risk_score += 10
+            reasons.append("Missing merchant category code (unusual for businesses)")
+        
+        # 6. Multiple payment apps in same QR (unusual)
+        payment_app_count = sum([1 for app in ['paytm', 'phonepe', 'gpay', 'amazonpay'] if app in qr_lower])
+        if payment_app_count > 1:
+            risk_score += 20
+            reasons.append("Multiple payment apps in single QR (unusual)")
+        
+        is_fraudulent = risk_score >= 30
+        
+        return is_fraudulent, risk_score, reasons, payment_info
+        
+    except Exception as e:
+        return False, 0, [f"Error analyzing payment QR: {str(e)}"], {}
+
+def extract_and_analyze_qr(image_path):
+    """
+    Extract data from QR code and determine if it's URL or payment type
+    Returns: (qr_data, qr_type, error)
+    qr_type: 'url' or 'payment' or 'other'
     """
     try:
         # Read the image
         image = cv2.imread(image_path)
         if image is None:
-            return None, "Failed to read image"
+            return None, None, "Failed to read image"
         
         # Decode QR codes
         decoded_objects = pyzbar.decode(image)
         
         if not decoded_objects:
-            return None, "No QR code found in image"
+            return None, None, "No QR code found in image"
         
-        # Extract the first URL found
+        # Extract the first QR code data
         for obj in decoded_objects:
-            qr_data = obj.data.decode('utf-8')
-            # Check if it's a URL
-            if qr_data.startswith('http://') or qr_data.startswith('https://'):
-                return qr_data, None
-            # Return any data found
-            return qr_data, None
+            qr_data = obj.data.decode('utf-8').strip()
+            
+            # Try to extract URL if it's embedded in other data (e.g., "316254    http://example.com")
+            url_match = re.search(r'(https?://[^\s]+|www\.[^\s]+)', qr_data)
+            if url_match:
+                extracted_url = url_match.group(1)
+                print(f"Extracted URL from QR data: {extracted_url}")
+                qr_data = extracted_url
+            
+            # Determine QR type
+            # Check for URL patterns (more flexible matching)
+            if (qr_data.startswith('http://') or 
+                qr_data.startswith('https://') or
+                qr_data.startswith('www.') or
+                re.match(r'^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}', qr_data)):
+                
+                # Normalize URL if it doesn't have http/https
+                if not qr_data.startswith('http'):
+                    if qr_data.startswith('www.'):
+                        qr_data = 'http://' + qr_data
+                    else:
+                        # Check if it looks like a domain
+                        if '.' in qr_data and not ' ' in qr_data:
+                            qr_data = 'http://' + qr_data
+                
+                return qr_data, 'url', None
+            elif is_payment_qr(qr_data):
+                return qr_data, 'payment', None
+            else:
+                # Check if it might be a URL without protocol
+                # Look for common domain patterns
+                if re.search(r'\w+\.\w{2,}(/|$)', qr_data) and not is_payment_qr(qr_data):
+                    # Likely a URL without protocol
+                    if not qr_data.startswith('http'):
+                        qr_data = 'http://' + qr_data
+                    return qr_data, 'url', None
+                
+                return qr_data, 'other', None
         
-        return None, "No URL found in QR code"
+        return None, None, "No data found in QR code"
     except Exception as e:
-        return None, f"QR extraction failed: {str(e)}"
+        return None, None, f"QR extraction failed: {str(e)}"
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -274,7 +443,7 @@ def detect_link():
 @app.route('/api/detect_qr', methods=['POST'])
 def detect_qr():
     """
-    Endpoint to extract URL from QR code and detect if it's malicious
+    Endpoint to extract and analyze QR code (payment or URL)
     Expected input: multipart/form-data with 'image' file
     """
     try:
@@ -296,19 +465,66 @@ def detect_qr():
         file.save(filepath)
         
         try:
-            # Extract URL from QR code
-            extracted_url, error = extract_url_from_qr(filepath)
+            # Extract and determine QR type
+            qr_data, qr_type, error = extract_and_analyze_qr(filepath)
             
             if error:
                 return jsonify({"error": error}), 400
             
-            # Predict if the extracted URL is malicious
-            result, status_code = predict_url(extracted_url)
+            # Log for debugging
+            print(f"QR Detection - Data: {qr_data[:100]}, Type: {qr_type}")
             
-            # Add extraction info
-            result['extracted_from_qr'] = True
-            
-            return jsonify(result), status_code
+            # Handle based on QR type
+            if qr_type == 'url':
+                # Use URL fraud detection model
+                result, status_code = predict_url(qr_data)
+                result['extracted_from_qr'] = True
+                result['qr_type'] = 'url'
+                return jsonify(result), status_code
+                
+            elif qr_type == 'payment':
+                # Use payment QR heuristics
+                is_fraudulent, risk_score, reasons, payment_info = check_payment_qr_heuristics(qr_data)
+                
+                result = {
+                    "qr_data": qr_data,
+                    "qr_type": "payment",
+                    "prediction": "malicious" if is_fraudulent else "safe",
+                    "is_fraudulent": is_fraudulent,
+                    "confidence": risk_score / 100,
+                    "risk_score": risk_score,
+                    "threat_type": "Fraudulent Payment" if is_fraudulent else "Legitimate Payment",
+                    "warning_flags": reasons,
+                    "payment_info": payment_info,
+                    "extracted_from_qr": True
+                }
+                
+                return jsonify(result), 200
+                
+            else:
+                # Unknown QR type - try to analyze as URL anyway if it looks like it could be a link
+                # This is a fallback for edge cases
+                if len(qr_data) > 0 and not is_payment_qr(qr_data):
+                    # Try treating it as a potential URL
+                    try:
+                        result, status_code = predict_url(qr_data)
+                        result['extracted_from_qr'] = True
+                        result['qr_type'] = 'url'
+                        result['note'] = 'Analyzed as potential URL (format not standard)'
+                        return jsonify(result), status_code
+                    except:
+                        pass
+                
+                # Truly unknown data
+                return jsonify({
+                    "qr_data": qr_data,
+                    "qr_type": "other",
+                    "prediction": "unknown",
+                    "is_fraudulent": False,
+                    "confidence": 0,
+                    "message": "QR code contains non-URL and non-payment data. Data: " + qr_data[:100],
+                    "extracted_from_qr": True
+                }), 200
             
         finally:
             # Clean up the temporary file
