@@ -22,6 +22,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
@@ -95,6 +96,33 @@ export default function QRScannerScreen() {
     }
   };
 
+  const saveScanToHistory = async (scanResult: DetectionResult) => {
+    try {
+      const historyStr = await AsyncStorage.getItem('scanHistory');
+      const history = historyStr ? JSON.parse(historyStr) : [];
+      
+      const scanEntry = {
+        type: 'QR',
+        result: scanResult.prediction,
+        threatType: scanResult.threat_type || scanResult.qr_type,
+        confidence: scanResult.confidence,
+        timestamp: new Date().toISOString(),
+        data: scanResult.qr_data || scanResult.url,
+      };
+      
+      history.unshift(scanEntry); // Add to beginning
+      
+      // Keep only last 100 scans
+      if (history.length > 100) {
+        history.splice(100);
+      }
+      
+      await AsyncStorage.setItem('scanHistory', JSON.stringify(history));
+    } catch (error) {
+      console.error('Failed to save scan history:', error);
+    }
+  };
+
   const handleScanQR = async (uri: string) => {
     setLoading(true);
     setResult(null);
@@ -102,6 +130,9 @@ export default function QRScannerScreen() {
     try {
       const detectionResult = await detectionService.detectQR(uri);
       setResult(detectionResult);
+      
+      // Save to history
+      await saveScanToHistory(detectionResult);
     } catch (error: any) {
       Alert.alert(
         'Detection Failed',

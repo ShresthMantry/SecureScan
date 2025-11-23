@@ -18,8 +18,8 @@ router.get('/', async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('userId', 'username email')
-      .populate('comments.userId', 'username');
+      .populate('userId', 'username email isAdmin')
+      .populate('comments.userId', 'username isAdmin');
 
     const total = await Post.countDocuments();
 
@@ -44,8 +44,8 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
-      .populate('userId', 'username email')
-      .populate('comments.userId', 'username');
+      .populate('userId', 'username email isAdmin')
+      .populate('comments.userId', 'username isAdmin');
 
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
@@ -82,7 +82,7 @@ router.post('/', [
     await post.save();
 
     // Populate user details
-    await post.populate('userId', 'username email');
+    await post.populate('userId', 'username email isAdmin');
 
     res.status(201).json({
       message: 'Post created successfully',
@@ -125,7 +125,7 @@ router.put('/:id', [
     }
 
     await post.save();
-    await post.populate('userId', 'username email');
+    await post.populate('userId', 'username email isAdmin');
 
     res.json({
       message: 'Post updated successfully',
@@ -139,7 +139,7 @@ router.put('/:id', [
 
 // @route   DELETE /api/posts/:id
 // @desc    Delete a post
-// @access  Private
+// @access  Private (Owner or Admin)
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -148,8 +148,11 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    // Check if user owns the post
-    if (post.userId.toString() !== req.userId) {
+    // Check if user owns the post or is admin
+    const isOwner = post.userId.toString() === req.userId;
+    const isAdmin = req.user.isAdmin;
+
+    if (!isOwner && !isAdmin) {
       return res.status(403).json({ error: 'Not authorized to delete this post' });
     }
 
@@ -179,7 +182,7 @@ router.post('/:id/like', authMiddleware, async (req, res) => {
       // Unlike
       post.likes.splice(likeIndex, 1);
       await post.save();
-      await post.populate('userId', 'username email');
+      await post.populate('userId', 'username email isAdmin');
       
       res.json({
         message: 'Post unliked',
@@ -190,7 +193,7 @@ router.post('/:id/like', authMiddleware, async (req, res) => {
       // Like
       post.likes.push(req.userId);
       await post.save();
-      await post.populate('userId', 'username email');
+      await post.populate('userId', 'username email isAdmin');
       
       res.json({
         message: 'Post liked',
@@ -230,8 +233,8 @@ router.post('/:id/comment', [
 
     post.comments.push(comment);
     await post.save();
-    await post.populate('userId', 'username email');
-    await post.populate('comments.userId', 'username');
+    await post.populate('userId', 'username email isAdmin');
+    await post.populate('comments.userId', 'username isAdmin');
 
     res.status(201).json({
       message: 'Comment added successfully',
@@ -243,6 +246,46 @@ router.post('/:id/comment', [
   }
 });
 
+// @route   DELETE /api/posts/:id/comment/:commentId
+// @desc    Delete a comment from a post
+// @access  Private (Comment Owner or Admin)
+router.delete('/:id/comment/:commentId', authMiddleware, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    const comment = post.comments.id(req.params.commentId);
+
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    // Check if user owns the comment or is admin
+    const isOwner = comment.userId.toString() === req.userId;
+    const isAdmin = req.user.isAdmin;
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: 'Not authorized to delete this comment' });
+    }
+
+    comment.deleteOne();
+    await post.save();
+    await post.populate('userId', 'username email isAdmin');
+    await post.populate('comments.userId', 'username isAdmin');
+
+    res.json({
+      message: 'Comment deleted successfully',
+      post
+    });
+  } catch (error) {
+    console.error('Delete comment error:', error);
+    res.status(500).json({ error: 'Failed to delete comment' });
+  }
+});
+
 // @route   GET /api/posts/user/:userId
 // @desc    Get posts by user ID
 // @access  Public
@@ -250,8 +293,8 @@ router.get('/user/:userId', async (req, res) => {
   try {
     const posts = await Post.find({ userId: req.params.userId })
       .sort({ createdAt: -1 })
-      .populate('userId', 'username email')
-      .populate('comments.userId', 'username')
+      .populate('userId', 'username email isAdmin')
+      .populate('comments.userId', 'username isAdmin')
       .populate('likes', 'username');
 
     res.json({ posts });

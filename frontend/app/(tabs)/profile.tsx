@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Alert, Dimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, Alert, Dimensions, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,13 +16,27 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
+import { postService } from '../../utils/postService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows, animation } from '../../constants/theme';
 
 const { width } = Dimensions.get('window');
 
+interface UserStats {
+  postsCount: number;
+  scansCount: number;
+  threatsDetected: number;
+}
+
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const [stats, setStats] = useState<UserStats>({
+    postsCount: 0,
+    scansCount: 0,
+    threatsDetected: 0,
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
 
   // Animation values
   const fadeAnim = useSharedValue(0);
@@ -36,6 +50,44 @@ export default function ProfileScreen() {
     stat2Scale.value = withDelay(200, withSpring(1, animation.spring));
     stat3Scale.value = withDelay(300, withSpring(1, animation.spring));
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadUserStats();
+    }
+  }, [user]);
+
+  const loadUserStats = async () => {
+    try {
+      setLoadingStats(true);
+
+      // Get posts count
+      const userPosts = await postService.getUserPosts(user!.id);
+      const postsCount = userPosts.length;
+
+      // Get scans count from AsyncStorage (where scan history is stored)
+      const scanHistoryStr = await AsyncStorage.getItem('scanHistory');
+      const scanHistory = scanHistoryStr ? JSON.parse(scanHistoryStr) : [];
+      const scansCount = scanHistory.length;
+
+      // Count threats detected (scans that were not "safe" or "benign")
+      const threatsDetected = scanHistory.filter((scan: any) => {
+        const result = scan.result?.toLowerCase() || '';
+        return result !== 'safe' && result !== 'benign' && result !== 'legitimate';
+      }).length;
+
+      setStats({
+        postsCount,
+        scansCount,
+        threatsDetected,
+      });
+    } catch (error) {
+      console.error('Failed to load user stats:', error);
+      // Keep default values of 0
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
   const fadeStyle = useAnimatedStyle(() => ({
     opacity: fadeAnim.value,
@@ -157,7 +209,11 @@ export default function ProfileScreen() {
                   >
                     <Ionicons name="shield-checkmark" size={24} color={colors.white} />
                   </LinearGradient>
-                  <Text style={styles.statValue}>0</Text>
+                  {loadingStats ? (
+                    <ActivityIndicator size="small" color={colors.primary} style={styles.statLoader} />
+                  ) : (
+                    <Text style={styles.statValue}>{stats.scansCount}</Text>
+                  )}
                   <Text style={styles.statLabel}>Scans</Text>
                 </Card>
               </Animated.View>
@@ -170,7 +226,11 @@ export default function ProfileScreen() {
                   >
                     <Ionicons name="chatbubbles" size={24} color={colors.white} />
                   </LinearGradient>
-                  <Text style={styles.statValue}>0</Text>
+                  {loadingStats ? (
+                    <ActivityIndicator size="small" color={colors.primary} style={styles.statLoader} />
+                  ) : (
+                    <Text style={styles.statValue}>{stats.postsCount}</Text>
+                  )}
                   <Text style={styles.statLabel}>Posts</Text>
                 </Card>
               </Animated.View>
@@ -183,7 +243,11 @@ export default function ProfileScreen() {
                   >
                     <Ionicons name="warning" size={24} color={colors.white} />
                   </LinearGradient>
-                  <Text style={styles.statValue}>0</Text>
+                  {loadingStats ? (
+                    <ActivityIndicator size="small" color={colors.primary} style={styles.statLoader} />
+                  ) : (
+                    <Text style={styles.statValue}>{stats.threatsDetected}</Text>
+                  )}
                   <Text style={styles.statLabel}>Threats</Text>
                 </Card>
               </Animated.View>
@@ -342,6 +406,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xxl,
     fontWeight: fontWeight.bold,
     color: colors.text,
+  },
+  statLoader: {
+    height: 32,
+    justifyContent: 'center',
   },
   statLabel: {
     fontSize: fontSize.xs,

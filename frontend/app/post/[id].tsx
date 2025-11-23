@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { postService, Post, Comment } from '../../utils/postService';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../constants/theme';
+import { Badge } from '../../components/Badge';
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -68,6 +69,30 @@ export default function PostDetailScreen() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    Alert.alert(
+      'Delete Comment',
+      'Are you sure you want to delete this comment?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!post) return;
+            try {
+              const updatedPost = await postService.deleteComment(post._id, commentId);
+              setPost(updatedPost);
+              Alert.alert('Success', 'Comment deleted successfully');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete comment');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const formatDate = (dateString: string) => {
@@ -148,7 +173,17 @@ export default function PostDetailScreen() {
                 </Text>
               </View>
               <View style={styles.userInfo}>
-                <Text style={styles.username}>{post.userId.username}</Text>
+                <View style={styles.usernameRow}>
+                  <Text style={styles.username}>{post.userId.username}</Text>
+                  {post.userId.isAdmin && (
+                    <Badge
+                      label="Admin"
+                      variant="primary"
+                      size="sm"
+                      icon="shield-checkmark"
+                    />
+                  )}
+                </View>
                 <Text style={styles.timestamp}>{formatDate(post.createdAt)}</Text>
               </View>
             </View>
@@ -186,26 +221,47 @@ export default function PostDetailScreen() {
                 <Text style={styles.emptyCommentsSubtext}>Be the first to comment!</Text>
               </View>
             ) : (
-              post.comments.map((comment) => (
-                <View key={comment._id} style={styles.commentCard}>
-                  <View style={styles.commentHeader}>
-                    <View style={styles.commentAvatar}>
-                      <Text style={styles.commentAvatarText}>
-                        {comment.userId.username.charAt(0).toUpperCase()}
-                      </Text>
+              post.comments.map((comment) => {
+                const canDeleteComment = user && (user.id === comment.userId._id || user.isAdmin);
+                return (
+                  <View key={comment._id} style={styles.commentCard}>
+                    <View style={styles.commentHeader}>
+                      <View style={styles.commentAvatar}>
+                        <Text style={styles.commentAvatarText}>
+                          {comment.userId.username.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.commentInfo}>
+                        <View style={styles.commentUsernameRow}>
+                          <Text style={styles.commentUsername}>
+                            {comment.userId.username}
+                          </Text>
+                          {comment.userId.isAdmin && (
+                            <Badge
+                              label="Admin"
+                              variant="primary"
+                              size="sm"
+                              icon="shield-checkmark"
+                            />
+                          )}
+                        </View>
+                        <Text style={styles.commentTimestamp}>
+                          {formatDate(comment.createdAt)}
+                        </Text>
+                      </View>
+                      {canDeleteComment && (
+                        <TouchableOpacity
+                          onPress={() => handleDeleteComment(comment._id)}
+                          style={styles.deleteCommentButton}
+                        >
+                          <Ionicons name="trash-outline" size={18} color={colors.error} />
+                        </TouchableOpacity>
+                      )}
                     </View>
-                    <View style={styles.commentInfo}>
-                      <Text style={styles.commentUsername}>
-                        {comment.userId.username}
-                      </Text>
-                      <Text style={styles.commentTimestamp}>
-                        {formatDate(comment.createdAt)}
-                      </Text>
-                    </View>
+                    <Text style={styles.commentText}>{comment.text}</Text>
                   </View>
-                  <Text style={styles.commentText}>{comment.text}</Text>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
         </ScrollView>
@@ -324,11 +380,16 @@ const styles = StyleSheet.create({
   userInfo: {
     flex: 1,
   },
+  usernameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: 2,
+  },
   username: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
     color: colors.text,
-    marginBottom: 2,
   },
   timestamp: {
     fontSize: fontSize.sm,
@@ -409,6 +470,15 @@ const styles = StyleSheet.create({
   },
   commentInfo: {
     flex: 1,
+  },
+  deleteCommentButton: {
+    padding: spacing.xs,
+    marginLeft: spacing.xs,
+  },
+  commentUsernameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   commentUsername: {
     fontSize: fontSize.sm,

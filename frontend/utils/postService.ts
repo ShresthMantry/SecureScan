@@ -4,6 +4,7 @@ export interface Comment {
   userId: {
     _id: string;
     username: string;
+    isAdmin?: boolean;
   };
   text: string;
   createdAt: string;
@@ -16,6 +17,7 @@ export interface Post {
     _id: string;
     username: string;
     email: string;
+    isAdmin?: boolean;
   };
   content: string;
   image?: string;
@@ -66,6 +68,11 @@ export const postService = {
 
   async addComment(id: string, text: string): Promise<Post> {
     const response = await api.post(`/posts/${id}/comment`, { text });
+    return response.data.post;
+  },
+
+  async deleteComment(postId: string, commentId: string): Promise<Post> {
+    const response = await api.delete(`/posts/${postId}/comment/${commentId}`);
     return response.data.post;
   },
 

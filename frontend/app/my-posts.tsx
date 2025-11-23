@@ -155,6 +155,7 @@ export default function MyPostsScreen() {
               post={item}
               onLike={() => handleLike(item._id)}
               onComment={() => handleComment(item._id)}
+              onDelete={() => handleDelete(item._id)}
             />
           )}
           contentContainerStyle={styles.listContent}

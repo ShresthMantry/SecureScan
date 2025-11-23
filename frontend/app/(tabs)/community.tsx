@@ -133,6 +133,16 @@ export default function CommunityScreen() {
     router.push(`/post/${postId}`);
   };
 
+  const handleDelete = async (postId: string) => {
+    try {
+      await postService.deletePost(postId);
+      setPosts((prev) => prev.filter((post) => post._id !== postId));
+      Alert.alert('Success', 'Post deleted successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete post');
+    }
+  };
+
   const handleCreatePost = () => {
     router.push('/create-post');
   };
@@ -232,6 +242,7 @@ export default function CommunityScreen() {
                 onLike={() => handleLike(item._id)}
                 onComment={() => handleComment(item._id)}
                 onPress={() => handleComment(item._id)}
+                onDelete={() => handleDelete(item._id)}
               />
             )}
             contentContainerStyle={styles.listContent}

@@ -57,6 +57,7 @@ router.post('/register', [
         id: user._id,
         username: user.username,
         email: user.email,
+        isAdmin: user.isAdmin,
         createdAt: user.createdAt
       }
     });
@@ -104,6 +105,7 @@ router.post('/login', [
         id: user._id,
         username: user.username,
         email: user.email,
+        isAdmin: user.isAdmin,
         createdAt: user.createdAt
       }
     });
@@ -123,6 +125,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         id: req.user._id,
         username: req.user.username,
         email: req.user.email,
+        isAdmin: req.user.isAdmin,
         createdAt: req.user.createdAt
       }
     });

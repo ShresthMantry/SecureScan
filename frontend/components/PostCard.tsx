@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Post } from '../utils/postService';
 import { colors, borderRadius, spacing, fontSize, fontWeight } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { Badge } from './Badge';
 
 interface PostCardProps {
   post: Post;
@@ -11,6 +12,7 @@ interface PostCardProps {
   onComment: () => void;
   onShare?: () => void;
   onPress?: () => void;
+  onDelete?: () => void;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -19,9 +21,26 @@ export const PostCard: React.FC<PostCardProps> = ({
   onComment,
   onShare,
   onPress,
+  onDelete,
 }) => {
   const { user } = useAuth();
   const isLiked = user ? post.likes.includes(user.id) : false;
+  const canDelete = user && (user.id === post.userId._id || user.isAdmin);
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this post?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => onDelete?.(),
+        },
+      ]
+    );
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -50,9 +69,24 @@ export const PostCard: React.FC<PostCardProps> = ({
           </Text>
         </View>
         <View style={styles.headerText}>
-          <Text style={styles.username}>{post.userId.username}</Text>
+          <View style={styles.usernameRow}>
+            <Text style={styles.username}>{post.userId.username}</Text>
+            {post.userId.isAdmin && (
+              <Badge
+                label="Admin"
+                variant="primary"
+                size="sm"
+                icon="shield-checkmark"
+              />
+            )}
+          </View>
           <Text style={styles.timestamp}>{formatDate(post.createdAt)}</Text>
         </View>
+        {canDelete && (
+          <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
+            <Ionicons name="trash-outline" size={20} color={colors.error} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <Text style={styles.content}>{post.content}</Text>
@@ -90,7 +124,7 @@ export const PostCard: React.FC<PostCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.cardBackground,
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.md,
@@ -101,6 +135,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.md,
+  },
+  deleteButton: {
+    padding: spacing.xs,
+    marginLeft: spacing.xs,
   },
   avatar: {
     width: 40,
@@ -118,6 +156,11 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
+  },
+  usernameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   username: {
     color: colors.text,
