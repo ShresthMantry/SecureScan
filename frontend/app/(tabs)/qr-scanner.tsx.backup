@@ -39,12 +39,14 @@ export default function QRScannerScreen() {
   // Animation values
   const fadeAnim = useSharedValue(0);
   const scaleAnim = useSharedValue(0.9);
+  const scanLineAnim = useSharedValue(0);
   const pulseAnim = useSharedValue(0);
 
   useEffect(() => {
     fadeAnim.value = withTiming(1, { duration: animation.slow });
     scaleAnim.value = withSpring(1, animation.spring);
     
+    // Continuous pulse for upload area
     pulseAnim.value = withRepeat(
       withSequence(
         withTiming(1, { duration: 2000 }),
@@ -54,6 +56,16 @@ export default function QRScannerScreen() {
       false
     );
   }, []);
+
+  useEffect(() => {
+    if (loading) {
+      scanLineAnim.value = withRepeat(
+        withTiming(1, { duration: 1500 }),
+        -1,
+        false
+      );
+    }
+  }, [loading]);
 
   const fadeStyle = useAnimatedStyle(() => ({
     opacity: fadeAnim.value,
@@ -147,7 +159,6 @@ export default function QRScannerScreen() {
               </Text>
             </View>
 
-            {/* Upload Area */}
             {!imageUri && !loading && (
               <Animated.View style={[styles.uploadContainer, pulseStyle]}>
                 <TouchableOpacity
@@ -190,17 +201,34 @@ export default function QRScannerScreen() {
               </Animated.View>
             )}
 
-            {/* Loading State */}
             {loading && (
               <Card variant="elevated" style={styles.loadingCard}>
                 <View style={styles.loadingContent}>
                   <View style={styles.scannerFrame}>
-                    <LinearGradient colors={colors.gradientPrimary} style={styles.scannerCorner} />
+                    <LinearGradient
+                      colors={colors.gradientPrimary}
+                      style={styles.scannerCornerTL}
+                    />
+                    <LinearGradient
+                      colors={colors.gradientPrimary}
+                      style={styles.scannerCornerTR}
+                    />
+                    <LinearGradient
+                      colors={colors.gradientPrimary}
+                      style={styles.scannerCornerBL}
+                    />
+                    <LinearGradient
+                      colors={colors.gradientPrimary}
+                      style={styles.scannerCornerBR}
+                    />
+                    
                     <ActivityIndicator size="large" color={colors.primary} />
                   </View>
                   
                   <Text style={styles.loadingTitle}>Analyzing QR Code</Text>
-                  <Text style={styles.loadingSubtext}>Our AI is checking for threats...</Text>
+                  <Text style={styles.loadingSubtext}>
+                    Our AI is checking for threats...
+                  </Text>
                   
                   <View style={styles.loadingSteps}>
                     <View style={styles.stepItem}>
@@ -216,9 +244,9 @@ export default function QRScannerScreen() {
               </Card>
             )}
 
-            {/* Results */}
             {result && (
               <View style={styles.resultContainer}>
+                {/* Status Indicator */}
                 <StatusIndicator
                   status={result.is_fraudulent ? 'danger' : 'safe'}
                   title={result.is_fraudulent ? 'Threat Detected!' : 'QR Code is Safe'}
@@ -231,7 +259,7 @@ export default function QRScannerScreen() {
                   animated={true}
                 />
 
-                {/* Badges */}
+                {/* QR Type Badge */}
                 {result.qr_type && (
                   <View style={styles.badgesContainer}>
                     <Badge
@@ -259,348 +287,258 @@ export default function QRScannerScreen() {
                 {/* Details Card */}
                 <Card variant="elevated" style={styles.detailsCard}>
                   <Text style={styles.sectionTitle}>Details</Text>
-                  
-                  {/* Payment Info */}
-                  {result.qr_type === 'payment' && result.payment_info && (
-                    <View style={styles.infoSection}>
-                      {result.payment_info.payee_name && (
-                        <View style={styles.infoRow}>
-                          <Ionicons name="person-outline" size={20} color={colors.primary} />
-                          <View style={styles.infoContent}>
-                            <Text style={styles.infoLabel}>Payee Name</Text>
-                            <Text style={styles.infoValue}>{result.payment_info.payee_name}</Text>
-                          </View>
-                        </View>
-                      )}
-                      {result.payment_info.payee_address && (
-                        <View style={styles.infoRow}>
-                          <Ionicons name="at-outline" size={20} color={colors.primary} />
-                          <View style={styles.infoContent}>
-                            <Text style={styles.infoLabel}>UPI ID</Text>
-                            <Text style={styles.infoValue} numberOfLines={2}>
-                              {result.payment_info.payee_address}
-                            </Text>
-                          </View>
-                        </View>
-                      )}
-                      {result.payment_info.amount && (
-                        <View style={styles.infoRow}>
-                          <Ionicons name="cash-outline" size={20} color={colors.primary} />
-                          <View style={styles.infoContent}>
-                            <Text style={styles.infoLabel}>Amount</Text>
-                            <Text style={[styles.infoValue, styles.amountText]}>
-                              ₹{result.payment_info.amount}
-                            </Text>
-                          </View>
-                        </View>
-                      )}
-                    </View>
-                  )}
 
-                  {/* URL Info */}
-                  {result.qr_type === 'url' && (result.url || result.qr_data) && (
-                    <View style={styles.infoSection}>
-                      <View style={styles.infoRow}>
-                        <Ionicons name="link-outline" size={20} color={colors.primary} />
-                        <View style={styles.infoContent}>
-                          <Text style={styles.infoLabel}>Extracted URL</Text>
-                          <Text style={styles.infoValue} numberOfLines={3}>
-                            {result.url || result.qr_data}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Stats */}
-                  <View style={styles.statsContainer}>
-                    <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>Confidence</Text>
-                      <Text style={styles.statValue}>
-                        {(result.confidence * 100).toFixed(1)}%
-                      </Text>
-                    </View>
-                    {result.risk_score !== undefined && (
-                      <View style={styles.statItem}>
-                        <Text style={styles.statLabel}>Risk Score</Text>
-                        <Text
-                          style={[
-                            styles.statValue,
-                            result.risk_score > 50 ? styles.dangerText : styles.successText,
-                          ]}
-                        >
-                          {result.risk_score}/100
+                {result.qr_type === 'payment' && result.payment_info ? (
+                  <>
+                    {result.payment_info.payee_name && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Payee Name:</Text>
+                        <Text style={styles.detailValue}>
+                          {result.payment_info.payee_name}
                         </Text>
                       </View>
                     )}
-                  </View>
-                </Card>
-
-                {/* Warning Flags */}
-                {result.warning_flags && result.warning_flags.length > 0 && (
-                  <Card variant="solid" style={styles.warningCard}>
-                    <View style={styles.warningHeader}>
-                      <Ionicons name="alert-circle" size={24} color={colors.error} />
-                      <Text style={styles.warningTitle}>Warning Flags</Text>
-                    </View>
-                    {result.warning_flags.map((flag: string, index: number) => (
-                      <View key={index} style={styles.warningItem}>
-                        <View style={styles.warningDot} />
-                        <Text style={styles.warningText}>{flag}</Text>
+                    {result.payment_info.payee_address && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>UPI ID:</Text>
+                        <Text style={styles.detailValue} numberOfLines={2}>
+                          {result.payment_info.payee_address}
+                        </Text>
                       </View>
-                    ))}
-                  </Card>
-                )}
-
-                {/* Action Advice */}
-                {result.is_fraudulent && (
-                  <Card
-                    variant="gradient"
-                    gradientColors={colors.gradientError}
-                    style={styles.adviceCard}
-                  >
-                    <Ionicons name="warning" size={32} color={colors.white} />
-                    <Text style={styles.adviceTitle}>⚠️ Security Alert</Text>
-                    <Text style={styles.adviceText}>
-                      {result.qr_type === 'payment'
-                        ? 'Fraudulent Payment QR! This appears to be a scam. Do not make any payment through this QR code.'
-                        : result.threat_type === 'Phishing'
-                        ? 'Phishing Attack Detected! This QR code leads to a site attempting to steal your personal information.'
-                        : result.threat_type === 'Malware'
-                        ? 'Malware Detected! This QR code may download harmful software to your device.'
-                        : 'This QR code has been detected as potentially malicious.'}
+                    )}
+                    {result.payment_info.amount && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Amount:</Text>
+                        <Text style={[styles.detailValue, styles.predictionText]}>
+                          ₹{result.payment_info.amount}
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Extracted URL:</Text>
+                    <Text style={styles.detailValue} numberOfLines={3}>
+                      {result.url || result.qr_data}
                     </Text>
-                  </Card>
+                  </View>
                 )}
 
-                {/* Reset Button */}
-                <Button
-                  title="Scan Another QR Code"
-                  onPress={handleReset}
-                  variant="outline"
-                  style={styles.resetButton}
-                />
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Prediction:</Text>
+                  <Text
+                    style={[
+                      styles.detailValue,
+                      styles.predictionText,
+                      result.is_fraudulent ? styles.dangerText : styles.successText,
+                    ]}
+                  >
+                    {result.prediction.toUpperCase()}
+                  </Text>
+                </View>
+
+                {result.threat_type && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Threat Type:</Text>
+                    <Text
+                      style={[
+                        styles.detailValue,
+                        styles.predictionText,
+                        result.threat_type.includes('Benign') || result.threat_type.includes('Legitimate') ? styles.successText : styles.dangerText,
+                      ]}
+                    >
+                      {result.threat_type}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Confidence:</Text>
+                  <Text style={styles.detailValue}>
+                    {(result.confidence * 100).toFixed(2)}%
+                  </Text>
+                </View>
+
+                {result.risk_score !== undefined && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Risk Score:</Text>
+                    <Text style={[
+                      styles.detailValue,
+                      result.risk_score > 50 ? styles.dangerText : styles.successText
+                    ]}>
+                      {result.risk_score}/100
+                    </Text>
+                  </View>
+                )}
               </View>
-            )}
-          </Animated.View>
-        </ScrollView>
-      </SafeAreaView>
-    </View>
+
+              {result.warning_flags && result.warning_flags.length > 0 && (
+                <View style={styles.warningFlagsContainer}>
+                  <Text style={styles.warningFlagsTitle}>⚠️ Warning Flags:</Text>
+                  {result.warning_flags.map((flag: string, index: number) => (
+                    <View key={index} style={styles.warningFlagItem}>
+                      <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
+                      <Text style={styles.warningFlagText}>{flag}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {result.is_fraudulent && (
+                <View style={styles.warningBox}>
+                  <Ionicons name="alert-circle" size={20} color={colors.error} />
+                  <Text style={styles.warningText}>
+                    {result.qr_type === 'payment' 
+                      ? '⚠️ Fraudulent Payment QR! This appears to be a scam. Do not make any payment through this QR code. Common scams include fake police/officer accounts, lottery scams, and urgent payment requests.'
+                      : result.threat_type === 'Phishing' 
+                      ? '⚠️ Phishing Attack Detected! This QR code leads to a site attempting to steal your personal information. Do not visit or enter any credentials.'
+                      : result.threat_type === 'Malware'
+                      ? '☢️ Malware Detected! This QR code may download harmful software to your device. Do not visit this URL.'
+                      : '⚠️ This QR code has been detected as potentially malicious. Do not scan or use this code.'}
+                  </Text>
+                </View>
+              )}
+
+              {!result.is_fraudulent && result.prediction !== 'unknown' && (
+                <View style={styles.safeBox}>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                  <Text style={styles.safeText}>
+                    This QR code appears to be safe based on our analysis.
+                  </Text>
+                </View>
+              )}
+
+              {result.prediction === 'unknown' && (
+                <View style={styles.infoBox}>
+                  <Ionicons name="information-circle" size={20} color={colors.accent} />
+                  <Text style={styles.infoText}>
+                    This QR code contains data that is neither a URL nor a payment request. Unable to analyze for fraud.
+                  </Text>
+                </View>
+              )}
+
+              <Button
+                title="Scan Another QR Code"
+                onPress={handleReset}
+                variant="outline"
+                style={styles.resetButton}
+              />
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  safeArea: {
-    flex: 1,
+    backgroundColor: colors.background,
   },
   scrollView: {
     padding: spacing.lg,
-    paddingBottom: spacing.xxl,
   },
   header: {
     alignItems: 'center',
     marginBottom: spacing.xl,
-    gap: spacing.md,
-  },
-  headerIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: borderRadius.xl,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadows.primaryGlow,
   },
   title: {
-    fontSize: fontSize.xxxl,
+    fontSize: fontSize.xxl,
     fontWeight: fontWeight.bold,
     color: colors.text,
-    textAlign: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: fontSize.md,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  uploadContainer: {
-    marginVertical: spacing.xl,
-  },
-  uploadButton: {
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-  },
-  uploadBlur: {
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-  },
-  uploadGradient: {
-    padding: spacing.xxl,
-    borderRadius: borderRadius.xl,
-    borderWidth: 2,
-    borderColor: colors.borderLight,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    gap: spacing.md,
-    minHeight: 280,
-    justifyContent: 'center',
-  },
-  uploadIconContainer: {
-    marginBottom: spacing.md,
-  },
-  uploadIconBg: {
-    width: 100,
-    height: 100,
-    borderRadius: borderRadius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadows.primaryGlow,
-  },
-  uploadTitle: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
-    textAlign: 'center',
-  },
-  uploadText: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
     textAlign: 'center',
   },
-  uploadFeatures: {
-    flexDirection: 'row',
-    gap: spacing.lg,
+  uploadContainer: {
+    marginVertical: spacing.xxl,
+  },
+  uploadButton: {
+    backgroundColor: colors.surfaceCard,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    borderRadius: borderRadius.lg,
+    padding: spacing.xxl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 250,
+  },
+  uploadText: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
     marginTop: spacing.md,
   },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  featureText: {
-    fontSize: fontSize.xs,
+  uploadSubtext: {
+    fontSize: fontSize.sm,
     color: colors.textSecondary,
-    fontWeight: fontWeight.medium,
+    marginTop: spacing.xs,
   },
-  loadingCard: {
-    marginVertical: spacing.xl,
-  },
-  loadingContent: {
+  loadingContainer: {
     alignItems: 'center',
-    gap: spacing.lg,
+    padding: spacing.xl,
+    marginTop: spacing.xxl,
   },
-  scannerFrame: {
-    width: 120,
-    height: 120,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  scannerCorner: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: borderRadius.lg,
-    opacity: 0.3,
-  },
-  loadingTitle: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
+  loadingText: {
+    fontSize: fontSize.md,
     color: colors.text,
-    textAlign: 'center',
+    marginTop: spacing.md,
   },
   loadingSubtext: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  loadingSteps: {
-    gap: spacing.sm,
-    width: '100%',
-  },
-  stepItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  stepText: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
   resultContainer: {
-    gap: spacing.lg,
     marginTop: spacing.md,
   },
-  badgesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+  resultCard: {
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    borderWidth: 2,
   },
-  detailsCard: {
-    gap: spacing.md,
+  successCard: {
+    backgroundColor: colors.surfaceCard,
+    borderColor: colors.success,
   },
-  sectionTitle: {
-    fontSize: fontSize.lg,
+  dangerCard: {
+    backgroundColor: colors.surfaceCard,
+    borderColor: colors.error,
+  },
+  resultHeader: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  resultTitle: {
+    fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginTop: spacing.md,
+    textAlign: 'center',
   },
-  infoSection: {
-    gap: spacing.md,
+  resultDetails: {
+    marginBottom: spacing.lg,
   },
-  infoRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    alignItems: 'flex-start',
+  detailRow: {
+    marginBottom: spacing.md,
   },
-  infoContent: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  infoLabel: {
-    fontSize: fontSize.xs,
+  detailLabel: {
+    fontSize: fontSize.sm,
     color: colors.textSecondary,
-    textTransform: 'uppercase',
-    fontWeight: fontWeight.semibold,
+    marginBottom: spacing.xs,
   },
-  infoValue: {
+  detailValue: {
     fontSize: fontSize.md,
     color: colors.text,
     fontWeight: fontWeight.medium,
   },
-  amountText: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    color: colors.primary,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  statItem: {
-    flex: 1,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.xs,
-  },
-  statLabel: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    fontWeight: fontWeight.semibold,
-  },
-  statValue: {
-    fontSize: fontSize.xl,
-    color: colors.text,
+  predictionText: {
     fontWeight: fontWeight.bold,
   },
   successText: {
@@ -609,58 +547,78 @@ const styles = StyleSheet.create({
   dangerText: {
     color: colors.error,
   },
-  warningCard: {
-    backgroundColor: colors.error + '15',
-    borderWidth: 1,
-    borderColor: colors.error + '30',
-  },
-  warningHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+  warningFlagsContainer: {
+    marginTop: spacing.md,
     marginBottom: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.error + '10',
+    borderRadius: borderRadius.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.error,
   },
-  warningTitle: {
-    fontSize: fontSize.lg,
+  warningFlagsTitle: {
+    fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: colors.error,
+    marginBottom: spacing.sm,
   },
-  warningItem: {
+  warningFlagItem: {
     flexDirection: 'row',
-    gap: spacing.sm,
     alignItems: 'flex-start',
-    paddingVertical: spacing.xs,
+    marginBottom: spacing.xs,
+    paddingLeft: spacing.sm,
   },
-  warningDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.error,
-    marginTop: 6,
+  warningFlagText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: colors.text,
+    marginLeft: spacing.sm,
+    lineHeight: 18,
+  },
+  warningBox: {
+    flexDirection: 'row',
+    backgroundColor: colors.error + '20',
+    borderRadius: borderRadius.sm,
+    padding: spacing.md,
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
   },
   warningText: {
     flex: 1,
     fontSize: fontSize.sm,
-    color: colors.text,
+    color: colors.error,
+    marginLeft: spacing.sm,
     lineHeight: 20,
   },
-  adviceCard: {
-    alignItems: 'center',
-    gap: spacing.sm,
-    ...shadows.errorGlow,
+  safeBox: {
+    flexDirection: 'row',
+    backgroundColor: colors.success + '20',
+    borderRadius: borderRadius.sm,
+    padding: spacing.md,
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
   },
-  adviceTitle: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    color: colors.white,
-    textAlign: 'center',
-  },
-  adviceText: {
+  safeText: {
+    flex: 1,
     fontSize: fontSize.sm,
-    color: colors.white,
-    textAlign: 'center',
-    lineHeight: 22,
-    opacity: 0.95,
+    color: colors.success,
+    marginLeft: spacing.sm,
+    lineHeight: 20,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    backgroundColor: colors.accent + '20',
+    borderRadius: borderRadius.sm,
+    padding: spacing.md,
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: colors.accent,
+    marginLeft: spacing.sm,
+    lineHeight: 20,
   },
   resetButton: {
     marginTop: spacing.sm,

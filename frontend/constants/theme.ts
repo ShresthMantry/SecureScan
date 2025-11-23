@@ -1,59 +1,70 @@
-// Premium Color Palette with Gradients
+// Premium Color Palette - Modern & Production Ready
 export const colors = {
-  // Primary gradient colors
-  primary: '#FF6B6B',
-  primaryLight: '#FF8E8E',
-  primaryDark: '#E74C3C',
+  // Primary gradient colors - Vibrant Blue/Purple
+  primary: '#6366F1', // Indigo
+  primaryLight: '#818CF8',
+  primaryDark: '#4F46E5',
   
-  // Accent colors
-  accent: '#4ECDC4',
-  accentLight: '#6EE7E0',
-  accentDark: '#3AB0A8',
+  // Accent colors - Cyan/Teal
+  accent: '#06B6D4', // Cyan
+  accentLight: '#22D3EE',
+  accentDark: '#0891B2',
   
-  // Secondary
-  secondary: '#FFD93D',
-  secondaryLight: '#FFE66D',
-  secondaryDark: '#F4C430',
+  // Secondary - Purple/Pink
+  secondary: '#A855F7', // Purple
+  secondaryLight: '#C084FC',
+  secondaryDark: '#9333EA',
   
-  // Background layers
-  background: '#0A0E27',
-  backgroundLight: '#121630',
-  backgroundCard: 'rgba(30, 39, 73, 0.6)',
+  // Background layers - Deep Dark
+  background: '#0F172A', // Slate 900
+  backgroundLight: '#1E293B', // Slate 800
+  backgroundCard: 'rgba(30, 41, 59, 0.6)', // Slate 800 with opacity
   
   // Surface with glassmorphism
   surface: 'rgba(255, 255, 255, 0.05)',
   surfaceLight: 'rgba(255, 255, 255, 0.1)',
-  surfaceCard: 'rgba(30, 39, 73, 0.8)',
+  surfaceCard: 'rgba(30, 41, 59, 0.8)',
+  surfaceHover: 'rgba(255, 255, 255, 0.15)',
   
   // Text colors
-  text: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.7)',
-  textTertiary: 'rgba(255, 255, 255, 0.5)',
+  text: '#F8FAFC', // Slate 50
+  textSecondary: 'rgba(248, 250, 252, 0.7)',
+  textTertiary: 'rgba(248, 250, 252, 0.5)',
+  textMuted: 'rgba(248, 250, 252, 0.4)',
   
-  // Status colors with gradients
-  success: '#6BCF7F',
-  successLight: '#8CDFAB',
-  error: '#FF6B6B',
-  errorLight: '#FF8E8E',
-  warning: '#FFD93D',
-  warningLight: '#FFE66D',
-  info: '#4ECDC4',
-  infoLight: '#6EE7E0',
+  // Status colors with modern palette
+  success: '#10B981', // Emerald 500
+  successLight: '#34D399',
+  successDark: '#059669',
+  error: '#EF4444', // Red 500
+  errorLight: '#F87171',
+  errorDark: '#DC2626',
+  warning: '#F59E0B', // Amber 500
+  warningLight: '#FBBF24',
+  warningDark: '#D97706',
+  info: '#06B6D4', // Cyan 500
+  infoLight: '#22D3EE',
+  infoDark: '#0891B2',
   
   // Utility
   border: 'rgba(255, 255, 255, 0.1)',
-  borderLight: 'rgba(255, 255, 255, 0.2)',
-  overlay: 'rgba(10, 14, 39, 0.9)',
+  borderLight: 'rgba(255, 255, 255, 0.15)',
+  borderDark: 'rgba(255, 255, 255, 0.05)',
+  overlay: 'rgba(15, 23, 42, 0.95)',
+  overlayLight: 'rgba(15, 23, 42, 0.7)',
   white: '#FFFFFF',
   black: '#000000',
   
   // Gradients (for LinearGradient)
-  gradientPrimary: ['#FF6B6B', '#E74C3C'],
-  gradientAccent: ['#4ECDC4', '#3AB0A8'],
-  gradientBackground: ['#0A0E27', '#1E2749'],
-  gradientCard: ['rgba(30, 39, 73, 0.8)', 'rgba(30, 39, 73, 0.4)'],
-  gradientSuccess: ['#6BCF7F', '#4CAF50'],
-  gradientError: ['#FF6B6B', '#E74C3C'],
+  gradientPrimary: ['#6366F1', '#4F46E5', '#4338CA'], // Indigo gradient
+  gradientAccent: ['#06B6D4', '#0891B2', '#0E7490'], // Cyan gradient
+  gradientSecondary: ['#A855F7', '#9333EA', '#7E22CE'], // Purple gradient
+  gradientBackground: ['#0F172A', '#1E293B', '#334155'], // Dark gradient
+  gradientCard: ['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.5)'],
+  gradientSuccess: ['#10B981', '#059669', '#047857'], // Emerald gradient
+  gradientError: ['#EF4444', '#DC2626', '#B91C1C'], // Red gradient
+  gradientWarning: ['#F59E0B', '#D97706', '#B45309'], // Amber gradient
+  gradientGlass: ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)'],
 };
 
 export const spacing = {
@@ -98,13 +109,27 @@ export const fontWeight = {
   heavy: '800' as const,
 };
 
-// Shadow presets for depth
+// Shadow presets for depth - Enhanced
 export const shadows = {
+  none: {
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  xs: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
   sm: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 2,
   },
   md: {
@@ -128,26 +153,73 @@ export const shadows = {
     shadowRadius: 24,
     elevation: 12,
   },
-  colored: {
-    shadowColor: '#FF6B6B',
-    shadowOffset: { width: 0, height: 8 },
+  xxl: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowRadius: 32,
+    elevation: 16,
+  },
+  // Colored shadows for emphasis
+  primaryGlow: {
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  successGlow: {
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  errorGlow: {
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  warningGlow: {
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 10,
   },
 };
 
-// Animation timing
+// Animation timing & easing
 export const animation = {
+  fastest: 150,
   fast: 200,
   normal: 300,
   slow: 500,
-  verySlow: 800,
+  slower: 700,
+  slowest: 1000,
+  // Spring configs
+  spring: {
+    damping: 15,
+    stiffness: 150,
+  },
+  springBouncy: {
+    damping: 10,
+    stiffness: 100,
+  },
+  springGentle: {
+    damping: 20,
+    stiffness: 120,
+  },
 };
 
 // Glassmorphism effect
 export const glass = {
   background: 'rgba(255, 255, 255, 0.05)',
+  backgroundStrong: 'rgba(255, 255, 255, 0.1)',
   border: 'rgba(255, 255, 255, 0.1)',
+  borderStrong: 'rgba(255, 255, 255, 0.2)',
   blur: 20,
+  blurStrong: 30,
 };

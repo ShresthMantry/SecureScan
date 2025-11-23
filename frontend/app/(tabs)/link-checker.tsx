@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,17 +7,67 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  TextInput,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Input } from '../../components/Input';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withRepeat,
+  withSequence,
+} from 'react-native-reanimated';
 import { Button } from '../../components/Button';
+import { Card } from '../../components/Card';
+import { Badge } from '../../components/Badge';
+import { StatusIndicator } from '../../components/StatusIndicator';
 import { detectionService, DetectionResult } from '../../utils/detectionService';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../constants/theme';
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows, animation } from '../../constants/theme';
+
+const { width } = Dimensions.get('window');
 
 export default function LinkCheckerScreen() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DetectionResult | null>(null);
+  const [isValidUrl, setIsValidUrl] = useState(false);
+
+  // Animation values
+  const fadeAnim = useSharedValue(0);
+  const scaleAnim = useSharedValue(0.9);
+  const pulseAnim = useSharedValue(0);
+
+  useEffect(() => {
+    fadeAnim.value = withTiming(1, { duration: animation.slow });
+    scaleAnim.value = withSpring(1, animation.spring);
+
+    pulseAnim.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 2000 }),
+        withTiming(0, { duration: 2000 })
+      ),
+      -1,
+      false
+    );
+  }, []);
+
+  useEffect(() => {
+    // Simple URL validation
+    const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+    setIsValidUrl(urlPattern.test(url.trim()));
+  }, [url]);
+
+  const fadeStyle = useAnimatedStyle(() => ({
+    opacity: fadeAnim.value,
+    transform: [{ scale: scaleAnim.value }],
+  }));
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    opacity: 0.7 + pulseAnim.value * 0.3,
+  }));
 
   const handleCheckLink = async () => {
     if (!url.trim()) {
@@ -47,253 +97,488 @@ export default function LinkCheckerScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollView}>
-        <View style={styles.header}>
-          <Ionicons name="link" size={48} color={colors.primary} />
-          <Text style={styles.title}>Link Checker</Text>
-          <Text style={styles.subtitle}>
-            Paste a URL to check if it's safe or malicious
-          </Text>
-        </View>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={colors.gradientBackground}
+        style={StyleSheet.absoluteFillObject}
+      />
 
-        <View style={styles.formContainer}>
-          <Input
-            label="URL to Check"
-            value={url}
-            onChangeText={setUrl}
-            placeholder="https://example.com"
-            autoCapitalize="none"
-            keyboardType="url"
-            editable={!loading}
-          />
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView
+          contentContainerStyle={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View style={fadeStyle}>
+            {/* Premium Header */}
+            <View style={styles.header}>
+              <LinearGradient
+                colors={colors.gradientAccent}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.headerIconContainer}
+              >
+                <Ionicons name="link-outline" size={40} color={colors.white} />
+              </LinearGradient>
+              <Text style={styles.title}>Link Checker</Text>
+              <Text style={styles.subtitle}>
+                AI-powered URL fraud detection in real-time
+              </Text>
+            </View>
 
-          {!result ? (
-            <Button
-              title={loading ? 'Analyzing...' : 'Check Link'}
-              onPress={handleCheckLink}
-              disabled={loading}
-              style={styles.button}
-            />
-          ) : (
-            <Button
-              title="Check Another Link"
-              onPress={handleReset}
-              variant="outline"
-              style={styles.button}
-            />
-          )}
-        </View>
+            {/* Modern Input Card */}
+            <Card variant="elevated" style={styles.inputCard}>
+              <Text style={styles.inputLabel}>Enter URL to Analyze</Text>
+              
+              <View style={styles.inputContainer}>
+                <LinearGradient
+                  colors={[colors.primary + '10', colors.primary + '05']}
+                  style={styles.inputWrapper}
+                >
+                  <Ionicons
+                    name={isValidUrl ? 'checkmark-circle' : 'globe-outline'}
+                    size={24}
+                    color={isValidUrl ? colors.success : colors.textSecondary}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    value={url}
+                    onChangeText={setUrl}
+                    placeholder="https://example.com"
+                    placeholderTextColor={colors.textTertiary}
+                    autoCapitalize="none"
+                    keyboardType="url"
+                    editable={!loading}
+                    autoCorrect={false}
+                  />
+                  {url.length > 0 && (
+                    <Ionicons
+                      name="close-circle"
+                      size={24}
+                      color={colors.textSecondary}
+                      onPress={() => setUrl('')}
+                      style={styles.clearIcon}
+                    />
+                  )}
+                </LinearGradient>
+              </View>
 
-        {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Analyzing URL...</Text>
-          </View>
-        )}
+              {/* Real-time validation feedback */}
+              {url.length > 0 && (
+                <Animated.View style={[styles.validationFeedback, pulseStyle]}>
+                  {isValidUrl ? (
+                    <View style={styles.validFeedback}>
+                      <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                      <Text style={styles.validText}>Valid URL format</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.invalidFeedback}>
+                      <Ionicons name="alert-circle" size={16} color={colors.warning} />
+                      <Text style={styles.invalidText}>Invalid URL format</Text>
+                    </View>
+                  )}
+                </Animated.View>
+              )}
 
-        {result && (
-          <View style={styles.resultContainer}>
-            <View
-              style={[
-                styles.resultCard,
-                result.is_fraudulent ? styles.dangerCard : styles.successCard,
-              ]}
-            >
-              <View style={styles.resultHeader}>
-                <Ionicons
-                  name={result.is_fraudulent ? 'warning' : 'shield-checkmark'}
-                  size={48}
-                  color={result.is_fraudulent ? colors.error : colors.success}
+              {/* Action Button */}
+              {!result ? (
+                <Button
+                  title={loading ? 'Analyzing...' : 'Check Link'}
+                  onPress={handleCheckLink}
+                  disabled={loading || !isValidUrl}
+                  style={styles.button}
                 />
-                <Text style={styles.resultTitle}>
-                  {result.is_fraudulent ? '⚠️ Fraudulent' : '✅ Safe'}
+              ) : (
+                <Button
+                  title="Check Another Link"
+                  onPress={handleReset}
+                  variant="outline"
+                  style={styles.button}
+                />
+              )}
+
+              {/* Quick Info */}
+              <View style={styles.infoBox}>
+                <Ionicons name="information-circle-outline" size={16} color={colors.info} />
+                <Text style={styles.infoText}>
+                  We analyze URLs for phishing, malware, and other threats
                 </Text>
               </View>
+            </Card>
 
-              <View style={styles.resultDetails}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>URL:</Text>
-                  <Text style={styles.detailValue} numberOfLines={2}>
-                    {result.url}
-                  </Text>
+            {/* Loading State */}
+            {loading && (
+              <Card variant="elevated" style={styles.loadingCard}>
+                <View style={styles.loadingContent}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={styles.loadingTitle}>Analyzing URL</Text>
+                  <Text style={styles.loadingSubtext}>Running ML analysis...</Text>
+                  
+                  <View style={styles.loadingSteps}>
+                    <View style={styles.stepItem}>
+                      <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+                      <Text style={styles.stepText}>URL parsed</Text>
+                    </View>
+                    <View style={styles.stepItem}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text style={styles.stepText}>Checking heuristics</Text>
+                    </View>
+                    <View style={styles.stepItem}>
+                      <Ionicons name="ellipse-outline" size={18} color={colors.textTertiary} />
+                      <Text style={[styles.stepText, styles.stepTextInactive]}>
+                        ML model prediction
+                      </Text>
+                    </View>
+                  </View>
                 </View>
+              </Card>
+            )}
 
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Prediction:</Text>
-                  <Text
-                    style={[
-                      styles.detailValue,
-                      styles.predictionText,
-                      result.is_fraudulent ? styles.dangerText : styles.successText,
-                    ]}
-                  >
-                    {result.prediction.toUpperCase()}
-                  </Text>
-                </View>
+            {/* Results */}
+            {result && (
+              <View style={styles.resultContainer}>
+                {/* Status Indicator */}
+                <StatusIndicator
+                  status={result.is_fraudulent ? 'danger' : 'safe'}
+                  title={result.is_fraudulent ? 'Threat Detected!' : 'Link is Safe'}
+                  subtitle={
+                    result.is_fraudulent
+                      ? `${result.threat_type || 'Malicious'} link identified`
+                      : 'No threats found in this URL'
+                  }
+                  size="lg"
+                  animated={true}
+                />
 
+                {/* Threat Type Badge */}
                 {result.threat_type && (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Threat Type:</Text>
-                    <Text
-                      style={[
-                        styles.detailValue,
-                        styles.predictionText,
-                        result.threat_type === 'Benign' ? styles.successText : styles.dangerText,
-                      ]}
-                    >
-                      {result.threat_type}
-                    </Text>
+                  <View style={styles.badgesContainer}>
+                    <Badge
+                      label={result.threat_type}
+                      variant={result.threat_type === 'Benign' ? 'success' : 'error'}
+                      size="md"
+                      gradient={true}
+                    />
+                    <Badge
+                      label={`${(result.confidence * 100).toFixed(0)}% Confidence`}
+                      variant="info"
+                      size="md"
+                    />
                   </View>
                 )}
 
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Confidence:</Text>
-                  <Text style={styles.detailValue}>
-                    {(result.confidence * 100).toFixed(2)}%
-                  </Text>
-                </View>
-
-                {result.risk_score !== undefined && (
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Risk Score:</Text>
-                    <Text style={[
-                      styles.detailValue,
-                      result.risk_score > 50 ? styles.dangerText : styles.successText
-                    ]}>
-                      {result.risk_score}/100
+                {/* URL Display Card */}
+                <Card variant="elevated" style={styles.urlCard}>
+                  <Text style={styles.sectionTitle}>Analyzed URL</Text>
+                  <View style={styles.urlDisplay}>
+                    <Ionicons name="link-outline" size={20} color={colors.primary} />
+                    <Text style={styles.urlText} numberOfLines={3}>
+                      {result.url}
                     </Text>
                   </View>
+                </Card>
+
+                {/* Stats Card */}
+                <Card variant="elevated" style={styles.statsCard}>
+                  <Text style={styles.sectionTitle}>Analysis Results</Text>
+                  <View style={styles.statsGrid}>
+                    <View style={styles.statBox}>
+                      <Text style={styles.statLabel}>Prediction</Text>
+                      <Text
+                        style={[
+                          styles.statValue,
+                          result.is_fraudulent ? styles.dangerText : styles.successText,
+                        ]}
+                      >
+                        {result.prediction.toUpperCase()}
+                      </Text>
+                    </View>
+                    {result.risk_score !== undefined && (
+                      <View style={styles.statBox}>
+                        <Text style={styles.statLabel}>Risk Score</Text>
+                        <Text
+                          style={[
+                            styles.statValue,
+                            result.risk_score > 50 ? styles.dangerText : styles.successText,
+                          ]}
+                        >
+                          {result.risk_score}/100
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </Card>
+
+                {/* Warning Flags */}
+                {result.warning_flags && result.warning_flags.length > 0 && (
+                  <Card variant="solid" style={styles.warningCard}>
+                    <View style={styles.warningHeader}>
+                      <Ionicons name="alert-circle" size={24} color={colors.error} />
+                      <Text style={styles.warningTitle}>Detected Issues</Text>
+                    </View>
+                    {result.warning_flags.map((flag: string, index: number) => (
+                      <View key={index} style={styles.warningItem}>
+                        <View style={styles.warningDot} />
+                        <Text style={styles.warningText}>{flag}</Text>
+                      </View>
+                    ))}
+                  </Card>
+                )}
+
+                {/* Security Advice */}
+                {result.is_fraudulent && (
+                  <Card
+                    variant="gradient"
+                    gradientColors={colors.gradientError}
+                    style={styles.adviceCard}
+                  >
+                    <Ionicons name="shield-checkmark-outline" size={32} color={colors.white} />
+                    <Text style={styles.adviceTitle}>Security Recommendation</Text>
+                    <Text style={styles.adviceText}>
+                      {result.threat_type === 'Phishing' &&
+                        'Do not enter any credentials or personal information. This link attempts to steal your data.'}
+                      {result.threat_type === 'Malware' &&
+                        'Do not visit this URL. It may download harmful software to your device.'}
+                      {result.threat_type === 'Defacement' &&
+                        'This website has been compromised. Avoid visiting this URL.'}
+                      {(!result.threat_type || result.threat_type === 'Suspicious') &&
+                        'This link has suspicious characteristics. Avoid visiting or sharing it.'}
+                    </Text>
+                  </Card>
+                )}
+
+                {!result.is_fraudulent && (
+                  <Card
+                    variant="gradient"
+                    gradientColors={colors.gradientSuccess}
+                    style={styles.adviceCard}
+                  >
+                    <Ionicons name="shield-checkmark" size={32} color={colors.white} />
+                    <Text style={styles.adviceTitle}>✓ Secure Link</Text>
+                    <Text style={styles.adviceText}>
+                      This URL appears safe based on our analysis. No threats detected.
+                    </Text>
+                  </Card>
                 )}
               </View>
-
-              {result.warning_flags && result.warning_flags.length > 0 && (
-                <View style={styles.warningFlagsContainer}>
-                  <Text style={styles.warningFlagsTitle}>⚠️ Warning Flags:</Text>
-                  {result.warning_flags.map((flag: string, index: number) => (
-                    <View key={index} style={styles.warningFlagItem}>
-                      <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
-                      <Text style={styles.warningFlagText}>{flag}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {result.is_fraudulent && (
-                <View style={styles.warningBox}>
-                  <Ionicons name="alert-circle" size={20} color={colors.error} />
-                  <Text style={styles.warningText}>
-                    {result.threat_type === 'Phishing' && 
-                      '⚠️ Phishing Attack Detected! This link is attempting to steal your personal information. Do not enter any credentials or personal data.'}
-                    {result.threat_type === 'Malware' && 
-                      '☢️ Malware Detected! This link may download harmful software to your device. Do not visit this URL.'}
-                    {result.threat_type === 'Defacement' && 
-                      '🚫 Defaced Website! This website has been compromised. Avoid visiting this URL.'}
-                    {(!result.threat_type || result.threat_type === 'Suspicious') && 
-                      '⚠️ Suspicious Link! This link has been detected as potentially malicious. Do not visit or share this URL.'}
-                  </Text>
-                </View>
-              )}
-
-              {!result.is_fraudulent && (
-                <View style={styles.safeBox}>
-                  <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-                  <Text style={styles.safeText}>
-                    This link appears to be safe based on our analysis.
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+            )}
+          </Animated.View>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+  },
+  safeArea: {
+    flex: 1,
   },
   scrollView: {
     padding: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
   header: {
     alignItems: 'center',
     marginBottom: spacing.xl,
+    gap: spacing.md,
+  },
+  headerIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: borderRadius.xl,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.primaryGlow,
   },
   title: {
-    fontSize: fontSize.xxl,
+    fontSize: fontSize.xxxl,
     fontWeight: fontWeight.bold,
     color: colors.text,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
     textAlign: 'center',
   },
-  formContainer: {
-    marginBottom: spacing.xl,
-  },
-  button: {
-    marginTop: spacing.md,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  loadingText: {
+  subtitle: {
     fontSize: fontSize.md,
     color: colors.textSecondary,
-    marginTop: spacing.md,
+    textAlign: 'center',
+    paddingHorizontal: spacing.xl,
   },
-  resultContainer: {
-    marginTop: spacing.md,
+  inputCard: {
+    marginBottom: spacing.lg,
   },
-  resultCard: {
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    borderWidth: 2,
+  inputLabel: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    marginBottom: spacing.md,
   },
-  successCard: {
-    backgroundColor: colors.surfaceCard,
-    borderColor: colors.success,
+  inputContainer: {
+    marginBottom: spacing.md,
   },
-  dangerCard: {
-    backgroundColor: colors.surfaceCard,
-    borderColor: colors.error,
-  },
-  resultHeader: {
+  inputWrapper: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    overflow: 'hidden',
   },
-  resultTitle: {
+  inputIcon: {
+    marginLeft: spacing.md,
+  },
+  input: {
+    flex: 1,
+    fontSize: fontSize.md,
+    color: colors.text,
+    padding: spacing.md,
+    paddingLeft: spacing.sm,
+    minHeight: 52,
+  },
+  clearIcon: {
+    marginRight: spacing.md,
+  },
+  validationFeedback: {
+    marginBottom: spacing.md,
+  },
+  validFeedback: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    padding: spacing.sm,
+    backgroundColor: colors.success + '15',
+    borderRadius: borderRadius.sm,
+  },
+  validText: {
+    fontSize: fontSize.sm,
+    color: colors.success,
+    fontWeight: fontWeight.medium,
+  },
+  invalidFeedback: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    padding: spacing.sm,
+    backgroundColor: colors.warning + '15',
+    borderRadius: borderRadius.sm,
+  },
+  invalidText: {
+    fontSize: fontSize.sm,
+    color: colors.warning,
+    fontWeight: fontWeight.medium,
+  },
+  button: {
+    marginTop: spacing.sm,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    padding: spacing.sm,
+    backgroundColor: colors.info + '10',
+    borderRadius: borderRadius.sm,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: fontSize.xs,
+    color: colors.info,
+    lineHeight: 18,
+  },
+  loadingCard: {
+    marginBottom: spacing.lg,
+  },
+  loadingContent: {
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  loadingTitle: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     color: colors.text,
-    marginTop: spacing.md,
   },
-  resultDetails: {
-    marginBottom: spacing.lg,
-  },
-  detailRow: {
-    marginBottom: spacing.md,
-  },
-  detailLabel: {
+  loadingSubtext: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
-    marginBottom: spacing.xs,
   },
-  detailValue: {
-    fontSize: fontSize.md,
-    color: colors.text,
-    fontWeight: fontWeight.medium,
+  loadingSteps: {
+    gap: spacing.sm,
+    width: '100%',
+    marginTop: spacing.sm,
   },
-  predictionText: {
+  stepItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  stepText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+  },
+  stepTextInactive: {
+    opacity: 0.5,
+  },
+  resultContainer: {
+    gap: spacing.lg,
+  },
+  badgesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  sectionTitle: {
+    fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  urlCard: {
+    gap: spacing.md,
+  },
+  urlDisplay: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'flex-start',
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  urlText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  statsCard: {
+    gap: spacing.md,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  statBox: {
+    flex: 1,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.xs,
+  },
+  statLabel: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    fontWeight: fontWeight.semibold,
+  },
+  statValue: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
   },
   successText: {
     color: colors.success,
@@ -301,60 +586,56 @@ const styles = StyleSheet.create({
   dangerText: {
     color: colors.error,
   },
-  warningFlagsContainer: {
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-    backgroundColor: colors.error + '10',
-    borderRadius: borderRadius.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.error,
+  warningCard: {
+    backgroundColor: colors.error + '15',
+    borderWidth: 1,
+    borderColor: colors.error + '30',
   },
-  warningFlagsTitle: {
-    fontSize: fontSize.md,
+  warningHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  warningTitle: {
+    fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
     color: colors.error,
-    marginBottom: spacing.sm,
   },
-  warningFlagItem: {
+  warningItem: {
     flexDirection: 'row',
+    gap: spacing.sm,
     alignItems: 'flex-start',
-    marginBottom: spacing.xs,
-    paddingLeft: spacing.sm,
+    paddingVertical: spacing.xs,
   },
-  warningFlagText: {
-    flex: 1,
-    fontSize: fontSize.sm,
-    color: colors.text,
-    marginLeft: spacing.sm,
-    lineHeight: 18,
-  },
-  warningBox: {
-    flexDirection: 'row',
-    backgroundColor: colors.error + '20',
-    borderRadius: borderRadius.sm,
-    padding: spacing.md,
-    alignItems: 'flex-start',
+  warningDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.error,
+    marginTop: 6,
   },
   warningText: {
     flex: 1,
     fontSize: fontSize.sm,
-    color: colors.error,
-    marginLeft: spacing.sm,
+    color: colors.text,
     lineHeight: 20,
   },
-  safeBox: {
-    flexDirection: 'row',
-    backgroundColor: colors.success + '20',
-    borderRadius: borderRadius.sm,
-    padding: spacing.md,
-    alignItems: 'flex-start',
+  adviceCard: {
+    alignItems: 'center',
+    gap: spacing.sm,
   },
-  safeText: {
-    flex: 1,
+  adviceTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.white,
+    textAlign: 'center',
+  },
+  adviceText: {
     fontSize: fontSize.sm,
-    color: colors.success,
-    marginLeft: spacing.sm,
-    lineHeight: 20,
+    color: colors.white,
+    textAlign: 'center',
+    lineHeight: 22,
+    opacity: 0.95,
   },
 });
