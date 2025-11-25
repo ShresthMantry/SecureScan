@@ -56,9 +56,24 @@ export default function LinkCheckerScreen() {
   }, []);
 
   useEffect(() => {
-    // Simple URL validation
-    const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
-    setIsValidUrl(urlPattern.test(url.trim()));
+    // Improved URL validation - supports query parameters, ports, and special characters
+    const validateUrl = (urlString: string) => {
+      if (!urlString.trim()) return false;
+      
+      try {
+        // Try to create a URL object - this is the most reliable way
+        const urlObj = new URL(urlString.includes('://') ? urlString : `https://${urlString}`);
+        // Check if it has a valid protocol and hostname
+        return (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') && 
+               urlObj.hostname.includes('.');
+      } catch (e) {
+        // Fallback to regex for partial URLs
+        const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/?#].*)?$/i;
+        return urlPattern.test(urlString.trim());
+      }
+    };
+    
+    setIsValidUrl(validateUrl(url));
   }, [url]);
 
   const fadeStyle = useAnimatedStyle(() => ({
@@ -128,12 +143,7 @@ export default function LinkCheckerScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={colors.gradientBackground}
-        style={StyleSheet.absoluteFillObject}
-      />
-
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
           contentContainerStyle={styles.scrollView}
