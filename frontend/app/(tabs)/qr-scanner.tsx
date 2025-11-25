@@ -150,12 +150,7 @@ export default function QRScannerScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={colors.gradientBackground}
-        style={StyleSheet.absoluteFillObject}
-      />
-      
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
           contentContainerStyle={styles.scrollView}

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
+import { otpService } from '../utils/otpService';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { colors, spacing, fontSize, fontWeight } from '../constants/theme';
@@ -42,8 +43,23 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
+      // First, register the user
       await register(username, email, password);
-      router.replace('/(tabs)');
+      
+      // Then send OTP to their email (skipUserCheck = true for new registrations)
+      await otpService.sendOtp(email, true);
+      
+      // Navigate to OTP verification screen
+      router.push({
+        pathname: '/verify-otp',
+        params: { email },
+      });
+      
+      Alert.alert(
+        'Registration Successful',
+        'Please check your email for the verification code.',
+        [{ text: 'OK' }]
+      );
     } catch (error: any) {
       console.log('Registration error:', error);
       console.log('Error response:', error.response);

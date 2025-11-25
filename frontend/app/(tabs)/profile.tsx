@@ -121,11 +121,7 @@ export default function ProfileScreen() {
 
   if (!user) {
     return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={colors.gradientBackground}
-          style={StyleSheet.absoluteFillObject}
-        />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.emptyContainer}>
             <LinearGradient
@@ -166,11 +162,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={colors.gradientBackground}
-        style={StyleSheet.absoluteFillObject}
-      />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
           contentContainerStyle={styles.scrollView}

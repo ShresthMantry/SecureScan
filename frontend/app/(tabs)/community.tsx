@@ -149,11 +149,7 @@ export default function CommunityScreen() {
 
   if (!user) {
     return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={colors.gradientBackground}
-          style={StyleSheet.absoluteFillObject}
-        />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.emptyContainer}>
             <LinearGradient
@@ -178,11 +174,7 @@ export default function CommunityScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={colors.gradientBackground}
-        style={StyleSheet.absoluteFillObject}
-      />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         {/* Modern Header */}
         <View style={styles.header}>

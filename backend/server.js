@@ -10,6 +10,7 @@ dotenv.config();
 const authRoutes = require('./routes/auth');
 const postRoutes = require('./routes/posts');
 const detectRoutes = require('./routes/detect');
+const otpRoutes = require('./routes/otp');
 
 const app = express();
 
@@ -30,6 +31,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/detect', detectRoutes);
+app.use('/api/otp', otpRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

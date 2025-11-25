@@ -219,12 +219,7 @@ export default function AIChatScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={colors.gradientBackground}
-        style={StyleSheet.absoluteFillObject}
-      />
-
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

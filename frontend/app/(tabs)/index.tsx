@@ -80,12 +80,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <LinearGradient
-          colors={colors.gradientBackground}
-          style={StyleSheet.absoluteFillObject}
-        />
-        
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
